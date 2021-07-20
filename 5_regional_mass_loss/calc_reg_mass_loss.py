@@ -82,7 +82,7 @@ reg_lst= ['ALA', 'WNA', 'ACN', 'ACS', 'GRL', 'ISL', 'SJM', 'SCA', 'RUA', 'ASN', 
 ##########################################
 ##########################################
 
-##    Define input paths
+## too many white spaces   Define input paths
 path = os.path.dirname(os.path.abspath(__file__))
 
 
