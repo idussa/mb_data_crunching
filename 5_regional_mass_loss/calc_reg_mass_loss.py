@@ -74,6 +74,7 @@ color = {  'ALA':	'#b9762a',
 ##    Define input datasets
 #################################################################################################
 
+## Define input paths
 path = os.path.dirname(os.path.abspath(__file__))
 path_proj = 'C:\\Users\\idussail2\\Documents\\PROJECTS\\G3P_project\\'
 fog_version = '2024-01'
