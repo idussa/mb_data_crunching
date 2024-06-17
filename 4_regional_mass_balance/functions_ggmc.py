@@ -247,4 +247,44 @@ def dis_fil(row, ini_date, fin_date):
     else:
         return 1.0
 
+    def convert_date_time_to_decimal_date(date_time):
+        """
+    This function converts a date and a time to a decimal date value
+    Inputs:
+    - date_time: datetime object
 
+    Outputs:
+    - decimal_date_float: float
+
+    """
+        hourdec = (date_time.hour + date_time.minute / 60. + date_time.second / 3600.) / 24.
+        doy = date_time.timetuple().tm_yday
+        decimal_date = date_time.year + (doy + hourdec) / 365.25
+        decimal_date = float('{:.8f}'.format(decimal_date))
+        return decimal_date
+
+
+def convert_decimal_date_to_date_time(decimal_date):
+    """
+This function converts a decimal date and a date and time
+Inputs:
+- decimal_date: float
+
+Outputs:
+- date_time: datetime object
+- date_time_string: formated string from the datetime object
+"""
+    decimal_date = float('{:.8f}'.format(decimal_date))
+    year = np.floor(decimal_date)
+    decimal_day = (decimal_date - np.floor(decimal_date)) * 365.25
+    doy = np.floor(decimal_day)
+    decimal_time = (decimal_day - doy) * 24.
+    hour = np.floor(decimal_time)
+    minute = np.floor((decimal_time - hour) * 60.)
+    second = (decimal_time - hour - minute / 60.) * 3660.
+    raw_str = str(int(year)) + '{0:03d}'.format(int(doy)) + '{0:02d}'.format(int(hour)) + '{0:02d}'.format(
+        int(minute)) + '{0:02d}'.format(int(second))
+    date_time = datetime.datetime.strptime(raw_str, '%Y%j%H%M%S')
+    date_time_string = date_time.strftime('%Y-%m-%d %H:%M:%S')
+    print(date_time_string)
+    return date_time, date_time_string

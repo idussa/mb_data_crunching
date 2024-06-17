@@ -47,7 +47,7 @@ def calc_anomalies(in_df, ref_period, region):
     # calculate anomaly (x_i-x_avg) for data over reference period
     avg_ref_df = good_ids_in_ref_df.mean()
     anomaly_ref_df = round(good_ids_in_df - avg_ref_df, 0)
-    print(anomaly_ref_df)
+    # print(anomaly_ref_df)
     print('done.')
     return anomaly_ref_df
 
@@ -66,18 +66,47 @@ def calc_anomalies_unc(in_df, in_unc_df, ref_period, region):
     unc_ref_df = in_unc_df[ref_period_id_lst]
     reg_unc_mean= np.nanmean(unc_ref_df)
 
+    print(unc_ref_df)
+    print(reg_unc_mean)
+
     for id in ref_period_id_lst:
+        # id=0
         year_min = in_df[id].first_valid_index()
-        yrs= list(range(1885,year_min))
+        yrs= list(range(1915,year_min))
+
         if unc_ref_df[id].isnull().all():
-            unc_ref_df[id].fillna(reg_unc_mean, inplace=True)
+            unc_ref_df[id][id].fillna(reg_unc_mean, inplace=True)
         else:
             unc_ref_df[id].fillna(unc_ref_df[id].mean(), inplace=True)
         # unc_ref_df.loc[unc_ref_df.index.isin(yrs), [id]] = np.nan
         unc_ref_df[id].mask(unc_ref_df.index.isin(yrs), np.nan, inplace=True)
 
+        print(unc_ref_df[id])
+        # exit()
     print('done.')
     return unc_ref_df
+
+def calc_spt_anomalies_unc(in_df, in_unc_df, id_lst):
+    """This function calculates the uncertainties of glacier mass balances series"""
+
+    # calculate mb uncertainty of glacier ids with good data over reference period
+    unc_ref_df = in_unc_df[id_lst]
+    reg_unc_mean= np.nanmean(unc_ref_df)
+
+    for id in unc_ref_df.columns:
+        year_min = in_df[id].first_valid_index()
+        yrs= list(range(1915,year_min))
+
+        if unc_ref_df[id].isnull().all():
+            unc_ref_df[id].fillna(reg_unc_mean, inplace=True)
+        else:
+            unc_ref_df[id].fillna(unc_ref_df[id].mean(), inplace=True)
+
+        unc_ref_df[id].mask(unc_ref_df.index.isin(yrs), np.nan, inplace=True)
+
+    print('done.')
+    return unc_ref_df
+
 
 
 def plot_reg_anomalies(in_ba_df_lst, path):
@@ -127,19 +156,16 @@ def plot_reg_anomalies(in_ba_df_lst, path):
 
     return
 
-def plot_gla_geo(in_cal_series_df, in_geo_df, glacier_id, min_year, max_year, min_lenght_geo, region, run, gla_dir):
+def plot_gla_oce(in_cal_series_df, in_geo_df, glacier_id, min_year, max_year, min_lenght_geo, region, run, gla_dir):
     #add in_geo_df to arguments
     """This function plots the anomalies of glacier mass balances over a defined reference period."""
     print('Plotting calibrated series for glacier = {}'.format(glacier_id))
-
-    # in_geo_df = in_geo_df/1000
-    # in_cal_series_df = in_cal_series_df/1000
 
     # set output format
     file_type = '.pdf'
 
     # define name of figure
-    out_fig = gla_dir + 'Fig1_'+str(region) +'_glacier_'+str(glacier_id)+'_geodetic_sample'+ file_type
+    out_fig = gla_dir + 'Fig1_Cal_'+str(region) +'_'+ run +'_glacier_id_'+str(glacier_id)+'_'+str(min_year)+'_'+str(max_year)+ file_type
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -154,18 +180,40 @@ def plot_gla_geo(in_cal_series_df, in_geo_df, glacier_id, min_year, max_year, mi
         x2 = row['fin_date']
         y1 = row['mb_chg_rate']
         y2 = row['sigma_tot_mb_chg']
-        ax.fill([x1, x1, x2, x2], [0, y1, y1, 0], color, alpha=0.1)
+        # ax.fill([x1, x1, x2, x2], [0, y1, y1, 0], color, alpha=0.1)
+        # ax.plot([x1, x2], [y1, y1], color, linewidth=0.75, alpha=0.8, solid_capstyle='butt')
+
+        ax.fill([x1, x1, x2, x2], [y1+y2, y1-y2, y1-y2, y1+y2], color='grey', alpha=0.1)
         ax.plot([x1, x2], [y1, y1], color, linewidth=0.75, alpha=0.8, solid_capstyle='butt')
 
-    ax.set_xlabel('Year', fontsize='large')
-    ax.set_ylabel('B$_{geo}$ (m w.e.)', fontsize='large')
-    ax.tick_params(labelsize='large')
-    ax.text(1952, -3.2, 'c - B$_{geo}$', fontsize=24)
+    # plot calibrated glaciological series
+    for item in in_cal_series_df.columns:
+        ax.plot(in_cal_series_df.index, in_cal_series_df[item], color='Silver', linewidth=0.5)
+
+    # plot average calibrated series
+    ax.plot(in_cal_series_df['normal_MEAN'], color='coral', label= 'Arithmetic Mean', linewidth=1)
+    ax.plot(in_cal_series_df['weighted_MEAN'], color='Black', label= 'Weighted Mean (Wu +Wd)', linewidth=1.2)
+
+    # set labels
+    # ax.set_title('Calibrated '+ run +' mass-change \n' + glacier_name + ', WGMS Id = {}'.format(wgms_id),
+    #              fontsize='medium')
+    # ax.set_title('Observational calibrated estimate \n Glacier WGMS Id '+str(glacier_id)+'  - Regional anomaly '+str(region),
+    #              fontsize='medium')
+    # ax.set_title('Observational Consensus Estimate \n' + glacier_name + ' glacier - glacier anomaly',
+    #              fontsize='medium')
+
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Mass balance (mm w.e.)')
+    ax.set_xticks(np.arange(min(in_cal_series_df.index), max(in_cal_series_df.index) + 2, step=10))
+    ax.tick_params(labelsize=18)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['left'].set_visible(False)
 
     # save plot
-    plt.xlim(1950, 2020)
-    plt.ylim((-3.5, 2.0))
-    # plt.legend(loc=3)
+    plt.xlim(1890, 2020)
+    plt.ylim((-4500, 2500))
+    plt.legend(loc=3)
     plt.tight_layout()
     plt.savefig(out_fig)
     print('Plot saved as {}.'.format(out_fig))
@@ -176,17 +224,16 @@ def plot_gla_geo(in_cal_series_df, in_geo_df, glacier_id, min_year, max_year, mi
 
     return
 
-
 def plot_gla_oce_and_unc(in_cal_series_df, in_oce_df, in_geo_df, in_oce_unc_df,  glacier_id, min_year, max_year, min_lenght_geo, region, run, gla_dir):
     #add in_geo_df to arguments
     """This function plots the anomalies of glacier mass balances over a defined reference period."""
     print('Plotting calibrated series for glacier = {}'.format(glacier_id))
 
     # set output format
-    file_type = '.png'
+    file_type = '.pdf'
 
     # define name of figure
-    out_fig = gla_dir + 'Fig2_'+str(region)+'_glacier_'+str(glacier_id)+'_OCE_v2'+ file_type
+    out_fig = gla_dir + 'Fig2_OCE_glacier_id_'+str(glacier_id)+'_region_'+str(region) + file_type
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -200,33 +247,35 @@ def plot_gla_oce_and_unc(in_cal_series_df, in_oce_df, in_geo_df, in_oce_unc_df, 
         x1 = row['ini_date']
         x2 = row['fin_date']
         y1 = row['mb_chg_rate']
-        y2 = row['sigma_tot_mb_chg']
-        # ax.fill([x1, x1, x2, x2], [y1+y2, y1-y2, y1-y2, y1+y2], color='grey', alpha=0.1)
-        # ax.plot([x1, x2], [y1, y1], color, linewidth=0.75, alpha=0.8, solid_capstyle='butt')
-
-        # ax.fill([x1, x1, x2, x2], [0, y1, y1, 0], color, alpha=0.1)
         ax.plot([x1, x2], [y1, y1], color, linewidth=0.75, alpha=0.8, solid_capstyle='butt')
+
 
     # plot calibrated glaciological series
     for item in in_cal_series_df.columns:
-        ax.plot(in_cal_series_df.index, in_cal_series_df[item], color='Silver', alpha=0.7, linewidth=0.7)
+        ax.plot(in_cal_series_df.index, in_cal_series_df[item], color='Silver', linewidth=0.5)
 
-    plt.fill_between(in_oce_df.index, in_oce_df + in_oce_unc_df[glacier_id],
+    plt.fill_between(in_cal_series_df.index, in_oce_df + in_oce_unc_df[glacier_id],
                      in_oce_df - in_oce_unc_df[glacier_id], color='grey', alpha=0.3, linewidth=0)
 
     # plot average calibrated series
-    ax.plot(in_oce_df, color='black', alpha=0.7, linewidth=1.5)
+    ax.plot(in_oce_df, color='black', label= 'OCE', linewidth=1)
 
-    ax.set_xlabel('Year', fontsize='large')
-    ax.set_ylabel('B$_{OCE}$ (m w.e.)', fontsize='large')
-    # ax.set_ylabel('B$_{calibrated}$ (m w.e.)', fontsize='large')
-    ax.tick_params(labelsize='large')
-    ax.text(1952, -3.2, 'd - B$_{OCE}$ ', fontsize=24)
+    # set labels
+    # ax.set_title('Calibrated '+ run +' mass-change \n' + glacier_name + ', WGMS Id = {}'.format(wgms_id),
+    #              fontsize='medium')
+    ax.set_title('Observational calibrated estimate \n Glacier WGMS Id '+str(glacier_id)+'  - Regional anomaly '+str(region),
+                 fontsize='medium')
+    # ax.set_title('Observational Consensus Estimate \n' + glacier_name + ' glacier - glacier anomaly',
+    #              fontsize='medium')
+
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Mass balance (mm w.e.)')
+    ax.set_xticks(np.arange(min(in_cal_series_df.index), max(in_cal_series_df.index) + 2, step=10))
 
     # save plot
-    plt.xlim(1950, 2020)
-    plt.ylim((-3.5, 2.0))
-    # plt.legend(loc=3)
+    plt.xlim(1890, 2020)
+    plt.ylim((-4500, 2500))
+    plt.legend(loc=3)
     plt.tight_layout()
     plt.savefig(out_fig)
     print('Plot saved as {}.'.format(out_fig))

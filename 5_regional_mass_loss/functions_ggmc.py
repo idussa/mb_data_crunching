@@ -247,4 +247,12 @@ def dis_fil(row, ini_date, fin_date):
     else:
         return 1.0
 
+def gt2slr(x_gt):
+    """Convert a mass change from Gt to equivalents of mean global sea-level rise (mm)"""
+
+    # ocean area: 362.5 x 10^6 km2 (Cogley, 2012)
+    ocean_area_m2 = 362.5 * 1000000 * 1000000
+    x_slr = round(-1 * x_gt * 10**12 / ocean_area_m2, 6)
+
+    return x_slr
 
