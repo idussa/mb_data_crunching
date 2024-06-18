@@ -132,3 +132,6 @@ dmypy.json
 */in_data*
 */out_data*
 0_original_codes/
+
+# Pycharm
+.idea
