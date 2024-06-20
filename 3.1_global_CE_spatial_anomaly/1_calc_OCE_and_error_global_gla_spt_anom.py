@@ -56,22 +56,23 @@ ini_hydro_yr= {'ALA' : 0.25,'WNA' : 0.25,'ACN' : 0.75,'ACS' : 0.75,'GRL' : 0.75,
 ##### 1. PATH TO FILES ######
 
 path = os.path.dirname(os.path.abspath(__file__))
-path_proj = 'C:\\Users\\idussail2\\Documents\\PROJECTS\\G3P_project\\codes\\mb_data_crunching_local\\'
+path_proj = os.path.join(path, "..")
+# path_proj = 'C:\\Users\\idussail2\\Documents\\PROJECTS\\G3P_project\\codes\\mb_data_crunching_local\\'
 
 fog_version = '2024-01'
 yr_ini= 1915 # define begining year of anomaly files, determined by longer anomally from CEU starting in 1915
 yr_end= 2023 # define the end year with data, determied by the last call for data in WGMS
 
 # read file with global geodetic mass-balance data and regional anomalies
-in_data_geo = path + '\\in_data\\fog-'+fog_version+'\\_FOG_GEO_MASS_BALANCE_DATA_'+fog_version+'.csv'
-path_spt_anom = path_proj + '2.1_spatial_anomalies\\out_data_'+fog_version+'\\LONG-NORM_spatial_gla_anom_ref_2011-2020\\'# path to spatial anomaly files
+in_data_geo = os.path.join(path, 'in_data', 'fog-'+fog_version,'_FOG_GEO_MASS_BALANCE_DATA_'+fog_version+'.csv')
+path_spt_anom = os.path.join(path_proj, '2.1_spatial_anomalies', 'out_data_'+fog_version, 'LONG-NORM_spatial_gla_anom_ref_2011-2020')# path to spatial anomaly files
 # in_data_anom_err = path_proj + '2.1_spatial_anomalies\\out_data\\UNC_spatial_gla_anom_ref_2011-2020\\'# path to spatial anomaly uncertainty files
 
-out_dir = path + '\\out_data_'+fog_version+'\\'
+out_dir = os.path.join(path,'out_data_'+fog_version)
 if not os.path.exists(out_dir):
     os.mkdir(out_dir)
 
-out_dir = path + '\\out_data_'+fog_version+'\\OCE_files_by_region\\'
+out_dir = os.path.join(path, 'out_data_'+fog_version, 'OCE_files_by_region')
 if not os.path.exists(out_dir):
     os.mkdir(out_dir)
 
@@ -87,6 +88,9 @@ geo_df.reset_index(inplace=True)
 reg_lst = geo_df['GLACIER_REGION_CODE'].unique().tolist()
 reg_lst.remove('SAN')
 reg_lst= reg_lst + ['SA1','SA2']
+
+# Test only Iceland
+reg_lst= ['ISL']
 
 #  Make a list of the full period of interest 1915 to present
 yr_lst = list(range(yr_ini, yr_end + 1))
@@ -106,17 +110,24 @@ run = 'spt_anom'
 
 for region in reg_lst:
     start_time = time.time()
-    region='CEU'
+    # region='CEU'
     # print('working on region, ', region)
 
     # create regional directory for regional glaciers OCE
-    out_reg_dir= path + '\\out_data_'+fog_version+'\\' + str(region) + '_oce_by_gla\\'
+    out_reg_dir= os.path.join(path, 'out_data_'+fog_version, str(region) + '_oce_by_gla')
     if not os.path.exists(out_reg_dir):
         os.mkdir(out_reg_dir)
 
-    ## create regional OCE and sigma OCE empty dataframes
+    ## create regional OCE and sigma OCE empty dataframes, including 3 error sources dataframes and the full error
     reg_oce_df = pd.DataFrame(index=yr_lst)
     reg_oce_df.index.name = 'YEAR'
+    reg_sig_dh_oce_df = pd.DataFrame(index=yr_lst)
+    reg_sig_dh_oce_df.index.name = 'YEAR'
+    reg_sig_rho_oce_df = pd.DataFrame(index=yr_lst)
+    reg_sig_rho_oce_df.index.name = 'YEAR'
+    reg_sig_anom_oce_df = pd.DataFrame(index=yr_lst)
+    reg_sig_anom_oce_df.index.name = 'YEAR'
+
     reg_sig_oce_df = pd.DataFrame(index=yr_lst)
     reg_sig_oce_df.index.name = 'YEAR'
 
@@ -156,11 +167,11 @@ for region in reg_lst:
     ###### CALCULATING OCE: Loop through all glaciers in the region with available geodetic estimates ######
 
     for fog_id in reg_wgms_id_lst:
-        fog_id=491
+        # fog_id=491
         print('working on region, ', region, '- glacier Id, ', fog_id)
 
         # create individual glacier directory
-        out_gla_dir = out_reg_dir + 'fog_Id_' + str(fog_id) + '_oce\\'
+        out_gla_dir = os.path.join(out_reg_dir, 'fog_Id_' + str(fog_id) + '_oce')
         if not os.path.exists(out_gla_dir):
             os.mkdir(out_gla_dir)
 
@@ -188,15 +199,21 @@ for region in reg_lst:
 
         # # Select geodetic estimates inside the period of interest and longer than min_lenght_geo
 
-        geo_mb_gla_df = geo_mb_gla_df[['WGMS_ID', 'ini_date', 'fin_date', 'mb_chg_rate', 'sigma_tot_mb_chg']]
+        geo_mb_gla_df = geo_mb_gla_df[['WGMS_ID', 'ini_date', 'fin_date', 'mb_chg_rate', 'sigma_tot_mb_chg', 'sigma_elevation_chg', 'elevation_chg_rate']]
         geo_ind_gla_sel_df = geo_mb_gla_df.loc[(geo_mb_gla_df['ini_date'] >= min_year - 2) & (geo_mb_gla_df['fin_date'] <= max_year + 1)]
 
         #create empty dataframes for calibrated series, calibrated series uncertainty, sigma geodetic uncertainty and distance to observation period
         cal_series_df = pd.DataFrame(index=yr_lst)
         cal_series_df.index.name='YEAR'
 
-        sig_cal_series_df = pd.DataFrame(index=yr_lst)
-        sig_cal_series_df.index.name='YEAR'
+        sig_dh_cal_series_df = pd.DataFrame(index=yr_lst)
+        sig_dh_cal_series_df.index.name='YEAR'
+
+        sig_rho_cal_series_df = pd.DataFrame(index=yr_lst)
+        sig_rho_cal_series_df.index.name='YEAR'
+
+        sig_anom_cal_series_df = pd.DataFrame(index=yr_lst)
+        sig_anom_cal_series_df.index.name = 'YEAR'
 
         sigma_geo_df = pd.DataFrame(index=yr_lst)
         sigma_geo_df.index.name= 'YEAR'
@@ -218,7 +235,15 @@ for region in reg_lst:
                 cal_val = row['mb_chg_rate'] + ref_anom
                 cal_series_df['serie_'+str(index)] = cal_val[str(fog_id)]
 
-                sig_cal_series_df['sig_serie_'+str(index)] = np.sqrt(row['sigma_tot_mb_chg']**2 + id_spt_anom_err_df**2)
+                # Three uncertainty sources: elevation change, density conversion, and anomaly
+
+                # We save them in the same unit of mass change, multiplying dh by density
+                # 1. Error in mass change from dh error sources
+                sig_dh_cal_series_df['sig_serie_'+str(index)] = row['sigma_elevation_chg'] * 0.85
+                # 2. Error in mass change from density error sources
+                sig_rho_cal_series_df['sig_serie_'+str(index)] = np.abs(row['elevation_chg_rate']) * 0.06
+                # 3. Error in mass change from anomalies
+                sig_anom_cal_series_df['sig_serie_'+str(index)] = id_spt_anom_err_df
 
                 # # Create geodetic estimate uncertainty dataframe
                 sigma_geo_df['serie_' + str(index)]=row['sigma_tot_mb_chg']
@@ -309,40 +334,54 @@ for region in reg_lst:
             ############################################################################################################################
 
             # ### Calculate an save individual glacier OCE uncertainty
-            nb_cal = cal_series_df.count(axis=1, numeric_only=True)
-            nb_cal = nb_cal.replace(0, np.nan)
 
-            all_cal_yrs = cal_series_df.dropna()
-            cal_series_std = all_cal_yrs.std(axis=1).mean()
-            cal_series_var_err = 1.96 * (cal_series_std / np.sqrt(nb_cal))  # 2 Std-Error(Stdev/sqrt(N)) Error
+            ## ROMAIN: THIS ONE SHOULD NOT BE REQUIRED ANYMORE
+            # nb_cal = cal_series_df.count(axis=1, numeric_only=True)
+            # nb_cal = nb_cal.replace(0, np.nan)
+            #
+            # all_cal_yrs = cal_series_df.dropna()
+            # cal_series_std = all_cal_yrs.std(axis=1).mean()
+            # cal_series_var_err = 1.96 * cal_series_std / np.sqrt(nb_cal)  # Std-Error(Stdev/sqrt(N)) Error
             # print(cal_series_var_err)
 
-            sig_cal_mean = sig_cal_series_df.mean(axis=1)
-            sig_cal_sqsum = sig_cal_series_df.pow(2).sum(axis=1)
-            sig_cal_series_sum = np.sqrt(sig_cal_sqsum) / len(cal_series_df.columns)
+            # sig_cal_sqsum = sig_cal_series_df.pow(2).sum(axis=1)
+            # sig_cal_series_sum = np.sqrt(sig_cal_sqsum) / len(cal_series_df.columns)
             # print(sig_cal_mean)
 
             # print(sig_cal_series_sum)
-            sig_oce = np.sqrt(cal_series_var_err ** 2 + sig_cal_mean ** 2)
-
             # if cal_series_df.empty == False:
-            reg_sig_oce_df[fog_id] = sig_oce
+
+
+            # We take the mean error for each source, which is fully justified
+            # (they will be correlated for the same glacier)
+            reg_sig_dh_oce_df[fog_id] = sig_dh_cal_series_df.mean(axis=1)
+            reg_sig_rho_oce_df[fog_id] = sig_rho_cal_series_df.mean(axis=1)
+            reg_sig_anom_oce_df[fog_id] = sig_anom_cal_series_df.mean(axis=1)
+
+            # Total error
+            reg_sig_oce_df[fog_id] = np.sqrt(sig_anom_cal_series_df.mean(axis=1) ** 2 +
+                                             sig_rho_cal_series_df.mean(axis=1) ** 2 +
+                                             sig_dh_cal_series_df.mean(axis=1) ** 2)
+
+
             # sig_oce.to_csv(out_gla_dir + 'sigma_CE_fog_id_' + str(fog_id) + '_' + region + '.csv')
             #
+
+            # TODO: INES I HAD TO PUT THIS OUT OF THE IF LOOP FOR PLOT BELOW, OTHERWISE "ISL_regional_CEs.csv" WAS EMPTY
+            #  OR IT WAS DOING AN EXIT()
+
+            oce_df = pd.DataFrame()
+            oce_df['weighted_MEAN'] = cal_series_W1_W2_df.sum(axis=1, min_count=1)
+            oce_df['normal_MEAN'] = cal_series_df.mean(axis=1)
+            oce_df = oce_df.rename(columns={'weighted_MEAN': fog_id})
+            oce_df = oce_df[fog_id]
+            reg_oce_df[fog_id] = oce_df
+
             ### Plot and save individual glacier OCE
-
-            if len(cal_series_df.columns) >= 1:
-                plot_gla_oce(cal_series_df, geo_ind_gla_sel_df, fog_id, min_year, max_year, min_lenght_geo, region, run, out_gla_dir)
-
-                oce_df=pd.DataFrame()
-                oce_df['weighted_MEAN']=cal_series_W1_W2_df.sum(axis=1, min_count=1)
-                oce_df['normal_MEAN'] = cal_series_df.mean(axis=1)
-                oce_df = oce_df.rename(columns={'weighted_MEAN':fog_id})
-                oce_df= oce_df[fog_id]
-
-                plot_gla_oce_and_unc(cal_series_df, oce_df, geo_ind_gla_sel_df, reg_sig_oce_df, fog_id, min_year, max_year, min_lenght_geo, region, run, out_gla_dir)
-                exit()
-                reg_oce_df[fog_id] = oce_df
+            # if len(cal_series_df.columns) >= 1:
+            #     plot_gla_oce(cal_series_df, geo_ind_gla_sel_df, fog_id, min_year, max_year, min_lenght_geo, region, run, out_gla_dir)
+            #     plot_gla_oce_and_unc(cal_series_df, oce_df, geo_ind_gla_sel_df, reg_sig_oce_df, fog_id, min_year, max_year, min_lenght_geo, region, run, out_gla_dir)
+            #     exit()
 
         # exit()
     # print(reg_oce_df)
@@ -351,8 +390,10 @@ for region in reg_lst:
         print("--- %s seconds ---" % (read_time4 - start_time))
 
     ### Save regional OCEs
-    reg_oce_df.to_csv(out_dir + region + '_regional_CEs.csv')
-    reg_sig_oce_df.to_csv(out_dir + region + '_regional_sigma_CEs.csv')
+    reg_oce_df.to_csv(os.path.join(out_dir, region + '_regional_CEs.csv'))
+    reg_sig_dh_oce_df.to_csv(os.path.join(out_dir, region + '_regional_sigma_dh_CEs.csv'))
+    reg_sig_rho_oce_df.to_csv(os.path.join(out_dir, region + '_regional_sigma_rho_CEs.csv'))
+    reg_sig_anom_oce_df.to_csv(os.path.join(out_dir, region + '_regional_sigma_anom_CEs.csv'))
     # exit()
 
 print('.........................................................................................')

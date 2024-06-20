@@ -232,8 +232,6 @@ def double_sum_covar(coords: np.ndarray, errors: np.ndarray, spatialcorr_func: C
     :return: Total variance from double sum.
    """
 
-    # Get number of points (glaciers)
-    n = len(coords)
     # Compute pairwise distance between all points
     pds = pdist(coords)
 
@@ -246,9 +244,7 @@ def double_sum_covar(coords: np.ndarray, errors: np.ndarray, spatialcorr_func: C
     # Then we sum everything
     var = np.sum(mat_var)
 
-    squared_se_dsc = np.sqrt(var) / n
-
-    return squared_se_dsc
+    return np.sqrt(var)
 
 
 def wrapper_latlon_double_sum_covar(df: pd.DataFrame, spatialcorr_func: Callable[[np.ndarray], np.ndarray]):
@@ -263,20 +259,20 @@ def wrapper_latlon_double_sum_covar(df: pd.DataFrame, spatialcorr_func: Callable
     """
 
     # Get median latitude and longitude among all values
-    med_lat = np.median(df.lat.values)
-    med_lon = np.median(df.lon.values)
+    med_lat = np.median(df.lat)
+    med_lon = np.median(df.lon)
 
     # Find the metric (UTM) system centered on these coordinates
     utm_zone = latlon_to_utm(med_lat, med_lon)
     epsg = utm_to_epsg(utm_zone)
 
     # Reproject latitude and longitude to easting/northing
-    easting, northing = reproject_from_latlon((df.lat.values, df.lon.values),
+    easting, northing = reproject_from_latlon((df.lat, df.lon),
                                               out_crs=pyproj.CRS.from_epsg(epsg))
     coords = np.array([easting, northing]).T
 
     # Extract errors
-    errors = df.errors.values
+    errors = df.errors
 
     return double_sum_covar(coords=coords, errors=errors, spatialcorr_func=spatialcorr_func)
 
@@ -313,6 +309,6 @@ def krige_ba_anom(xobs: np.ndarray, yobs: np.ndarray, ba_anom_obs: np.ndarray, x
     )
 
     # Predict on grid, with uncertainty
-    ba_anom_pred, std_anom_pred = OK.execute("points", xpred, ypred)
+    ba_anom_pred, sig_anom_pred = OK.execute("points", xpred, ypred)
 
-    return ba_anom_pred, std_anom_pred
+    return ba_anom_pred, sig_anom_pred

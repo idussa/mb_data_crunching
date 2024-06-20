@@ -103,6 +103,9 @@ reg_lst = input_gla_df['GLACIER_REGION_CODE'].unique().tolist()
 reg_lst.remove('SAN')
 reg_lst= reg_lst + ['SA1','SA2'] # Separate Andes in two regions:
 
+# Try only Iceland
+reg_lst= ['ISL']
+
 ba_file = path + '\\in_data\\fog-'+fog_version+'\\fog_' + fog_version+ '_ba.csv'
 ba_unc_file = path + '\\in_data\\fog-'+fog_version+'\\fog_' + fog_version+ '_ba_unc.csv'
 
