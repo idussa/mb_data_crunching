@@ -131,7 +131,7 @@ def reproject_from_latlon(
 # SPATIAL INTERPOLATION WITH CORRELATION = KRIGING
 ##################################################
 
-def krige_ba_anom(xobs: np.ndarray, yobs: np.ndarray, ba_anom_obs: np.ndarray, xpred: np.ndarray, ypred: np.ndarray):
+def krige_ba_anom(xobs: np.ndarray, yobs: np.ndarray, ba_anom_obs: np.ndarray, xpred: np.ndarray, ypred: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Interpolate annual mass balance anomaly using kriging.
 
@@ -144,21 +144,59 @@ def krige_ba_anom(xobs: np.ndarray, yobs: np.ndarray, ba_anom_obs: np.ndarray, x
     :return: Annual mass balance anomalies of glacier to predict, Error (1-sigma) of predicted anomalies.
     """
 
-    # TODO: Either pass standardized anomalies, or multiply model by variance here
+    # We have a spatial correlation function based on standardized anomalies, so we need to de-standardize it here
+    # to derive a variogram equivalent
+    if len(ba_anom_obs) > 10:
+        var = np.nanvar(ba_anom_obs)
+    # TODO: If sample size is too small, replace by an average annual anomaly variance?
+    else:
+        var = 2
+
+    def variogram_func(placeholder, d: np.ndarray):
+        """The variogram is the variance minus the covariance, and the covariance is the variance times correlation."""
+        return var * (1 - ba_anom_spatialcorr(d))
 
     # Ordinary kriging = kriging with a mean function
     OK = OrdinaryKriging(
-        xobs,
-        yobs,
-        ba_anom_obs,
+        np.atleast_1d(xobs),
+        np.atleast_1d(yobs),
+        np.atleast_1d(ba_anom_obs),
         variogram_model="custom",
-        variogram_parameters=[],
-        variogram_function=ba_anom_spatialcorr,
+        variogram_parameters=[1],  # Placeholder argument that is not used (otherwise PyKrige doesn't like empty list)
+        variogram_function=variogram_func,
         verbose=False,
         enable_plotting=False,
     )
 
     # Predict on grid, with uncertainty
-    ba_anom_pred, sig_anom_pred = OK.execute("points", xpred, ypred)
+    ba_anom_pred, sig_anom_pred = OK.execute("points", np.atleast_1d(xpred), np.atleast_1d(ypred))
 
     return ba_anom_pred, sig_anom_pred
+
+def wrapper_latlon_krige_ba_anom(df_obs: pd.DataFrame, df_pred: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Wrapper for kriging with dataframe input, converting lat/lon coordinates in a local metric projection.
+
+    :param df_obs: Dataframe containing "lat", "lon", "ba_anom" for inputs series.
+    :param df_pred: Dataframe containing "lat" and "lon" for points where to predict.
+
+    :return: Annual mass balance anomalies of glacier to predict, Error (1-sigma) of predicted anomalies.
+    """
+
+    # Get median latitude and longitude among all values
+    med_lat = np.median(df_obs.lat)
+    med_lon = np.median(df_obs.lon)
+
+    # Find the metric (UTM) system centered on these coordinates
+    utm_zone = latlon_to_utm(med_lat, med_lon)
+    epsg = utm_to_epsg(utm_zone)
+
+    # Reproject latitude and longitude to easting/northing
+    easting, northing = reproject_from_latlon((df_obs.lat, df_obs.lon),
+                                              out_crs=pyproj.CRS.from_epsg(epsg))
+    easting_pred, northing_pred = reproject_from_latlon((df_pred.lat, df_pred.lon),
+                                              out_crs=pyproj.CRS.from_epsg(epsg))
+    # Extract anomalies
+    ba_anom = df_obs.ba_anom
+
+    return krige_ba_anom(xobs=easting, yobs=northing, ba_anom_obs=ba_anom, xpred=easting_pred, ypred=northing_pred)

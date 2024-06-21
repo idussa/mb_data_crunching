@@ -68,27 +68,27 @@ start_time = time.time()
 
 path = os.path.dirname(os.path.abspath(__file__))
 
-out_dir = path + '\\out_data_'+fog_version+'\\'
+out_dir = os.path.join(path, 'out_data_'+fog_version)
 if not os.path.exists(out_dir):
     os.mkdir(out_dir)
 
 # create directory for regional glaciers anomalies
-out_reg_dir= out_dir + 'MEAN_spatial_gla_anom_ref_'+str(year_ini)+'-'+str(year_fin)+'\\'
+out_reg_dir= os.path.join(out_dir, 'MEAN_spatial_gla_anom_ref_'+str(year_ini)+'-'+str(year_fin))
 if not os.path.exists(out_reg_dir):
     os.mkdir(out_reg_dir)
 
-out_anom_dir= out_dir + 'LOOKUP_spatial_and_reg_ids_ref_'+str(year_ini)+'-'+str(year_fin)+'\\'
+out_anom_dir= os.path.join(out_dir, 'LOOKUP_spatial_and_reg_ids_ref_'+str(year_ini)+'-'+str(year_fin))
 if not os.path.exists(out_anom_dir):
     os.mkdir(out_anom_dir)
 
-out_long_dir= out_dir + 'LONG-NORM_spatial_gla_anom_ref_' + str(year_ini) + '-' + str(year_fin) + '\\'
+out_long_dir= os.path.join(out_dir, 'LONG-NORM_spatial_gla_anom_ref_' + str(year_ini) + '-' + str(year_fin))
 if not os.path.exists(out_long_dir):
     os.mkdir(out_long_dir)
 
 ##### 2.1 READ MASS BALANCE DATA ######
 
 # read FoG file with global annual and seasonal mass-balance data
-in_data_gla = path + '\\in_data\\fog-'+fog_version+'\\fog_bw-bs-ba_'+fog_version+'.csv'
+in_data_gla = os.path.join(path, 'in_data', 'fog-'+fog_version,'fog_bw-bs-ba_'+fog_version+'.csv')
 input_gla_df = pd.read_csv(in_data_gla, delimiter=',', header=0)
 
 ### create mass-balance data csv if it has not been produced before
@@ -106,8 +106,8 @@ reg_lst= reg_lst + ['SA1','SA2'] # Separate Andes in two regions:
 # Try only Iceland
 reg_lst= ['ISL']
 
-ba_file = path + '\\in_data\\fog-'+fog_version+'\\fog_' + fog_version+ '_ba.csv'
-ba_unc_file = path + '\\in_data\\fog-'+fog_version+'\\fog_' + fog_version+ '_ba_unc.csv'
+ba_file = os.path.join(path, 'in_data', 'fog-'+fog_version, 'fog_' + fog_version+ '_ba.csv')
+ba_unc_file = os.path.join(path, 'in_data', 'fog-'+fog_version, 'fog_' + fog_version+ '_ba_unc.csv')
 
 # ba_df = create_mb_dataframe(input_gla_df, all_fog_gla_id_lst, yr_lst, 'ANNUAL_BALANCE')
 # ba_df.to_csv(ba_file, sep=',', encoding='utf-8', index=True, index_label='YEAR')
@@ -120,7 +120,7 @@ ba_df = pd.read_csv(ba_file, delimiter=',', header=0, index_col=0)
 ba_df.columns = ba_df.columns.map(int)  # make columns names great again
 
 ### Add missing years to Urumqi glacier fog_id 853
-file= path + '\\in_data\\urumqi_missing_years.csv'
+file= os.path.join(path, 'in_data', 'urumqi_missing_years.csv')
 df = pd.read_csv(file, delimiter=',', header=0, index_col=0)
 df.columns = df.columns.map(int)  # make columns names great again
 ba_df = ba_df.fillna(df)
@@ -128,13 +128,13 @@ ba_df = ba_df.fillna(df)
 ba_unc_df = pd.read_csv(ba_unc_file, delimiter=',', header=0, index_col=0)
 ba_unc_df.columns = ba_unc_df.columns.map(int)  # make columns names great again
 
-in_gla_coord = path + '\\in_data\\fog-'+fog_version+'\\FOG_coord_'+fog_version+'.csv'
+in_gla_coord = os.path.join(path, 'in_data','fog-'+fog_version, 'FOG_coord_'+fog_version+'.csv')
 coord_gla_df= pd.read_csv(in_gla_coord, encoding='latin1', delimiter=',', header=0, index_col='WGMS_ID').sort_index()
 
 ##### 2.2 READ GEODETIC DATA ######
 
 # read FoG file with global geodetic data
-in_data_geo = path + '\\in_data\\fog-'+fog_version+'\\_FOG_GEO_MASS_BALANCE_DATA_'+fog_version+'.csv'
+in_data_geo = os.path.join(path, 'in_data', 'fog-'+fog_version, '_FOG_GEO_MASS_BALANCE_DATA_'+fog_version+'.csv')
 input_geo_df= pd.read_csv(in_data_geo, encoding='latin1', delimiter=',', header=0, index_col='WGMS_ID').sort_index()
 input_geo_df.reset_index(inplace=True)
 # print(geo_df)
@@ -150,10 +150,10 @@ print("--- %s seconds ---" % (read_time - start_time))
 # reg_lst = ['GRL']
 
 for region in reg_lst:
-    region= 'CEU'
+    # region= 'CEU'
     print('working on region, ', region)
 
-    out_csv = out_anom_dir + 'readme_final_ids_for_mean_anom_' + str(region) + '.csv'
+    out_csv = os.path.join(out_anom_dir, 'readme_final_ids_for_mean_anom_' + str(region) + '.csv')
     with open(out_csv, 'w', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', lineterminator = '\n')
         writer.writerow(['REGION', 'WGMS_ID', 'LIST_IDS_MEAN_ANOM'])
@@ -183,7 +183,7 @@ for region in reg_lst:
         ###### 3. CALCULATING SPATIAL ANOMALIES: Loop through all glaciers in the region ######
 
         for fog_id in reg_fog_geo_id_lst:
-            fog_id = 491
+            # fog_id = 491
             print('working on glacier Id, ', fog_id)
 
             ## SELECT MASS BALANCE DATA FOR GLACIER REGION GROUP
@@ -303,7 +303,7 @@ for region in reg_lst:
             ba_glac_df = ba_df.loc[:, list(glac['WGMS_ID'].unique().tolist())]
             glac_anom = calc_anomalies(ba_glac_df, reference_period, region)
 
-            unc_glac_anom = calc_spt_anomalies_unc(glac_anom, ba_unc_df, glac_anom.columns.to_list() )
+            unc_glac_anom = calc_spt_anomalies_unc(glac_anom, ba_unc_df, glac_anom.columns.to_list())
 
             # FOR SA2 ONLY: if no uncertainty measurement use the regional annual mean uncertainty of the glaciological sample
             if unc_glac_anom.isnull().sum().sum():
@@ -443,32 +443,70 @@ for region in reg_lst:
             lat_glac = close_gla_weights['LATITUDE']
             lon_glac= close_gla_weights['LONGITUDE']
 
-            close_gla_weights['distance (km) to id:' + str(fog_id)] = great_circle_distance(lat_id, lon_id, lat_glac, lon_glac)
-            close_gla_weights = close_gla_weights.sort_values(by=['distance (km) to id:' + str(fog_id)])
-            close_gla_weights['dist_weight'] = np.where((close_gla_weights['distance (km) to id:' + str(fog_id)] != 0), (1/ close_gla_weights['distance (km) to id:' + str(fog_id)])**0.5, 1 )
+            # ROMAIN: Replacing by inverse-distance weighting by kriging here
+            # close_gla_weights['distance (km) to id:' + str(fog_id)] = great_circle_distance(lat_id, lon_id, lat_glac, lon_glac)
+            # close_gla_weights = close_gla_weights.sort_values(by=['distance (km) to id:' + str(fog_id)])
+            # close_gla_weights['dist_weight'] = np.where((close_gla_weights['distance (km) to id:' + str(fog_id)] != 0), (1/ close_gla_weights['distance (km) to id:' + str(fog_id)])**0.5, 1 )
             # print(close_gla_weights)
             # exit()
-
             # glac_id_sel_lst = d_close_gla_df.index.to_list()[0:max_glac_anom] ## only if a maximum number of anomalies want to be used
             anoms_4_fog_id_df = glac_anom[spatial_id_fin_lst]
             unc_anoms_4_fog_id_df = unc_glac_anom[spatial_id_fin_lst]
 
-            weight_df = anoms_4_fog_id_df.copy()
-            weight_df = weight_df.notnull().astype('int')
+            # We can't apply to the whole YEAR/ID dataframe at once here, we need to loop for each YEAR of the dataframes
+            # to compute the kriging
+            from kriging import wrapper_latlon_krige_ba_anom
+            list_mean_anom = []
+            list_sig_anom = []
+            for i in range(len(anoms_4_fog_id_df.index)):
+                print(f"Kriging glacier {fog_id} for year {anoms_4_fog_id_df.index[i]}")
 
-            for id in spatial_id_fin_lst:
-                weight= close_gla_weights.loc[id, 'dist_weight']
-                weight_df[id] = weight_df[id] * weight
-                weight_df[id].replace(0, np.nan, inplace=True)
+                # Create dataframe with anomalies, lat and lon
+                yearly_anom_df = anoms_4_fog_id_df.iloc[i, :]
 
-            yr_tot_weight = weight_df.sum(axis=1)
-            yr_tot_weight.replace(0, np.nan, inplace=True)
+                obs_df = pd.DataFrame(data={"ba_anom": yearly_anom_df.values, "lat": np.array(lat_glac), "lon": np.array(lon_glac)})
 
-            weight_anom_fog_id_df = (anoms_4_fog_id_df * weight_df).sum(axis=1)
-            weight_anom_fog_id_df.replace(0, np.nan, inplace=True)
+                valids = np.isfinite(obs_df["ba_anom"])
 
-            weight_unc_anom_fog_id_df = (unc_anoms_4_fog_id_df * weight_df).sum(axis=1)
-            weight_unc_anom_fog_id_df.replace(0, np.nan, inplace=True)
+                # If nodata is valid, write NaNs
+                if np.count_nonzero(valids) <= 1:
+                    list_mean_anom.append(np.nan)
+                    list_sig_anom.append(np.nan)
+                    continue
+                # Otherwise limit to valid data only
+                else:
+                    obs_df = obs_df[valids]
+
+                # Create dataframe with points where to predict (could be several at once but here always one)
+                pred_df = pd.DataFrame(data={"lat": [lat_id], "lon": [lon_id]})
+
+                # Kriging at the coordinate of the current glacier
+                mean_anom, sig_anom = wrapper_latlon_krige_ba_anom(df_obs=obs_df, df_pred=pred_df)
+                list_mean_anom.append(mean_anom[0])
+                list_sig_anom.append(sig_anom[0])
+
+            # And write back the 1D list of uncertainties into an indexed (by YEAR) dataframe
+            anom_fog_id_df = pd.DataFrame(index=anoms_4_fog_id_df.index, data=np.array(list_mean_anom), columns=[str(fog_id)])
+            sig_anom_df = pd.DataFrame(index=anoms_4_fog_id_df.index, data=np.array(list_sig_anom), columns=[str(fog_id)])
+
+            #
+            # weight_df = anoms_4_fog_id_df.copy()
+            # weight_df = weight_df.notnull().astype('int')
+            #
+            # for id in spatial_id_fin_lst:
+            #     weight= close_gla_weights.loc[id, 'dist_weight']
+            #     weight_df[id] = weight_df[id] * weight
+            #     weight_df[id].replace(0, np.nan, inplace=True)
+            #
+            # yr_tot_weight = weight_df.sum(axis=1)
+            # yr_tot_weight.replace(0, np.nan, inplace=True)
+            #
+            # weight_anom_fog_id_df = (anoms_4_fog_id_df * weight_df).sum(axis=1)
+            # weight_anom_fog_id_df.replace(0, np.nan, inplace=True)
+            #
+            # weight_unc_anom_fog_id_df = (unc_anoms_4_fog_id_df * weight_df).sum(axis=1)
+            # weight_unc_anom_fog_id_df.replace(0, np.nan, inplace=True)
+
 
             ## Print list of glaciological series used to calculate the anomaly of every given glacier
             writer.writerow([str(region), str(fog_id), spatial_id_fin_lst])
@@ -487,37 +525,35 @@ for region in reg_lst:
             ## CALCULATE:  mean anomaly for fog_id
             ## if glacier has in situ measurements i.e. dist = 0 use the own glaciers anomaly
 
-
-
-            anom_fog_id_df = weight_anom_fog_id_df / yr_tot_weight
+            # anom_fog_id_df = weight_anom_fog_id_df / yr_tot_weight
             # print(anom_fog_id_df)
             # exit()
-            anom_fog_id_df = pd.DataFrame(anom_fog_id_df, columns=[str(fog_id)])
+            # anom_fog_id_df = pd.DataFrame(anom_fog_id_df, columns=[str(fog_id)])
             anom_fog_id_df = anom_fog_id_df.loc[anom_fog_id_df.index >= 1915]
 
             spt_anom_lst.append(anom_fog_id_df)
 
             ## CALCULATE: Uncertainty for fog_id
-            mean_gla_mba_err = weight_unc_anom_fog_id_df / yr_tot_weight
-            mean_gla_mba_err_df = pd.DataFrame(mean_gla_mba_err, columns=[str(fog_id)])
+            # mean_gla_mba_err = weight_unc_anom_fog_id_df / yr_tot_weight
+            # mean_gla_mba_err_df = pd.DataFrame(mean_gla_mba_err, columns=[str(fog_id)])
 
-            nb_gla = pd.DataFrame(anoms_4_fog_id_df.count(axis=1, numeric_only = True), columns=[str(fog_id)])
-            nb_gla = nb_gla.replace(0, np.nan)
+            # nb_gla = pd.DataFrame(anoms_4_fog_id_df.count(axis=1, numeric_only = True), columns=[str(fog_id)])
+            # nb_gla = nb_gla.replace(0, np.nan)
 
-            all_anom_yrs = anoms_4_fog_id_df.dropna()
-            anoms_std = all_anom_yrs.std(axis=1).mean()
-            var_anoms_err_df = 1.96 * (anoms_std / np.sqrt(nb_gla))  # 2 Std-Error(Stdev/sqrt(N)) Error
+            # all_anom_yrs = anoms_4_fog_id_df.dropna()
+            # anoms_std = all_anom_yrs.std(axis=1).mean()
+            # var_anoms_err_df = 1.96 * (anoms_std / np.sqrt(nb_gla))  # 2 Std-Error(Stdev/sqrt(N)) Error
             # print(var_anoms_err_df)
             # exit()
 
             # fill nans with mean error
-            min_year = anom_fog_id_df.first_valid_index()
-            yrs = list(range(1885, min_year))
-            var_anoms_err_df.fillna(var_anoms_err_df.mean(), inplace=True)
-            var_anoms_err_df.loc[var_anoms_err_df.index.isin(yrs), [str(fog_id)]] = np.nan
+            # min_year = anom_fog_id_df.first_valid_index()
+            # yrs = list(range(1885, min_year))
+            # var_anoms_err_df.fillna(var_anoms_err_df.mean(), inplace=True)
+            # var_anoms_err_df.loc[var_anoms_err_df.index.isin(yrs), [str(fog_id)]] = np.nan
 
-            sig_anom_df = np.sqrt(var_anoms_err_df ** 2 + mean_gla_mba_err_df ** 2)
-            sig_anom_df = round(sig_anom_df,2)
+            # sig_anom_df = np.sqrt(var_anoms_err_df ** 2 + mean_gla_mba_err_df ** 2)
+            sig_anom_df = round(sig_anom_df, 2)
             sig_anom_df = sig_anom_df.loc[sig_anom_df.index >= 1915]
             # print(round(sig_anom_df,2))
             # exit()
@@ -531,7 +567,7 @@ for region in reg_lst:
             fig = plt.figure()
             ax = fig.add_subplot(111)
 
-            out_plot_path = path + '\\out_data_'+fog_version+'\\plot_reg_anomaly_ref_period_' + str(year_ini) + '-' + str(year_fin) + '_final\\'
+            out_plot_path = os.path.join(path, 'out_data_'+fog_version,'plot_reg_anomaly_ref_period_' + str(year_ini) + '-' + str(year_fin) + '_final')
             if not os.path.exists(out_plot_path):
                 os.mkdir(out_plot_path)
             # print(anoms_4_fog_id_df)
@@ -562,8 +598,8 @@ for region in reg_lst:
                 ax.set_xlim([1950, 2023])
                 plt.xticks(np.arange(1960, 2023, 20))
 
-                out_fig = out_plot_path + 'Anomaly_and_UNC_for_id_' + str(fog_id) + '_ref_period_' + str(year_ini) + '-' + str(
-                    year_fin) + '_' + fog_version + '.svg'
+                out_fig = os.path.join(out_plot_path, 'Anomaly_and_UNC_for_id_' + str(fog_id) + '_ref_period_' + str(year_ini) + '-' + str(
+                    year_fin) + '_' + fog_version + '.svg')
 
                 fig.tight_layout()
                 plt.savefig(out_fig, dpi=300)
@@ -573,36 +609,36 @@ for region in reg_lst:
             else:
                 print('................... Region with only one glacier anomaly:', region,
                       '............................')
-            exit()
-    glac_anom.to_csv(out_anom_dir + region + '_all_SEL_gla_anomalies.csv')
-    reg_glac_anom.to_csv(out_anom_dir + region + '_all_reg_gla_anomalies.csv')
-    unc_glac_anom.to_csv(out_anom_dir + region + '_all_SEL_gla_anomalies_UNC.csv')
+            # exit()
+    glac_anom.to_csv(os.path.join(out_anom_dir, region + '_all_SEL_gla_anomalies.csv'))
+    reg_glac_anom.to_csv(os.path.join(out_anom_dir, region + '_all_reg_gla_anomalies.csv'))
+    unc_glac_anom.to_csv(os.path.join(out_anom_dir, region + '_all_SEL_gla_anomalies_UNC.csv'))
 
     ### Save all glacier anomalies and uncertainties - exclude uncertainties from the SAN regions
     spt_anom_df = pd.concat(spt_anom_lst, axis='columns')
-    spt_anom_df.to_csv(out_reg_dir + str(region) + '_spt_anoms_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
+    spt_anom_df.to_csv(os.path.join(out_reg_dir, str(region) + '_spt_anoms_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
 
     if not (region in ['SA1', 'SA2']):
         sig_spt_anom_df = pd.concat(sig_spt_anom_lst, axis='columns')
-        sig_spt_anom_df.to_csv(out_reg_dir + str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
+        sig_spt_anom_df.to_csv(os.path.join(out_reg_dir, str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
 
     print("--- %s seconds ---" % (time.time() - read_time))
 
     ### Save glacier anomalies and uncertainties OK with long time periods
     reg_ok_lst = ['ACS', 'ACN', 'ASW', 'ASE', 'ASC', 'ASN', 'ALA', 'SCA']
     if region in reg_ok_lst:
-        spt_anom_df.to_csv(out_long_dir + str(region) + '_spt_anoms_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
-        sig_spt_anom_df.to_csv(out_long_dir + str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
+        spt_anom_df.to_csv(os.path.join(out_long_dir, str(region) + '_spt_anoms_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
+        sig_spt_anom_df.to_csv(os.path.join(out_long_dir, str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
     if region == 'SA2':
-        spt_anom_df.to_csv(out_long_dir + str(region) + '_spt_anoms_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
+        spt_anom_df.to_csv(os.path.join(out_long_dir, str(region) + '_spt_anoms_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
 
 exit()
 
 ###############   SPECIAL CASE ANDES:
 ##CALCULATE: Uncertainty SAN regions
 
-sa1_anom_in = out_anom_dir + 'SA1_all_reg_gla_anomalies.csv'
-sa2_anom_in = out_anom_dir + 'SA2_all_reg_gla_anomalies.csv'
+sa1_anom_in = os.path.join(out_anom_dir, 'SA1_all_reg_gla_anomalies.csv')
+sa2_anom_in = os.path.join(out_anom_dir, 'SA2_all_reg_gla_anomalies.csv')
 sa1_anom_df = pd.read_csv(sa1_anom_in, delimiter=',', header=0, index_col=0)
 sa2_anom_df = pd.read_csv(sa2_anom_in, delimiter=',', header=0, index_col=0)
 san_anom_df = pd.concat([sa1_anom_df,sa2_anom_df], axis='columns')
@@ -615,8 +651,8 @@ anoms_std = all_anom_yrs.std(axis=1).mean()
 
 san_var_err = 1.96 * (anoms_std / np.sqrt(nb_gla))  # 2 Std-Error(Stdev/sqrt(N)) Error
 
-sa1_sig_in = out_anom_dir + 'SA1_all_SEL_gla_anomalies_UNC.csv'
-sa2_sig_in = out_anom_dir + 'SA2_all_SEL_gla_anomalies_UNC.csv'
+sa1_sig_in = os.path.join(out_anom_dir, 'SA1_all_SEL_gla_anomalies_UNC.csv')
+sa2_sig_in = os.path.join(out_anom_dir, 'SA2_all_SEL_gla_anomalies_UNC.csv')
 sa1_sig_df = pd.read_csv(sa1_sig_in, delimiter=',', header=0, index_col=0)
 sa2_sig_df = pd.read_csv(sa2_sig_in, delimiter=',', header=0, index_col=0)
 san_sig_df = pd.concat([sa1_sig_df,sa2_sig_df], axis='columns')
@@ -632,7 +668,7 @@ san_anom_df['SA2_unc'].fillna(san_anom_df['SA2_unc'].mean(), inplace=True)
 san_anom_df.loc[san_anom_df.index.isin(yrs), ['SA2_unc']] = np.nan
 
 for region in ['SA1', 'SA2']:
-    san_anom_df[region+'_unc'].to_csv(out_anom_dir + region + '_all_SEL_gla_anomalies_UNC_recalc.csv')
+    san_anom_df[region+'_unc'].to_csv(os.path.join(out_anom_dir, region + '_all_SEL_gla_anomalies_UNC_recalc.csv'))
 
     san_err_df = pd.DataFrame(index=yr_lst)
     san_err_df.index.name = 'YEAR'
@@ -657,10 +693,10 @@ for region in ['SA1', 'SA2']:
         # exit()
 
     sig_spt_anom_df = pd.concat(sig_san_lst, axis='columns')
-    sig_spt_anom_df.to_csv(out_reg_dir + str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
+    sig_spt_anom_df.to_csv(os.path.join(out_reg_dir, str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
 
     if region == 'SA2':
-        sig_spt_anom_df.to_csv(out_long_dir + str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
+        sig_spt_anom_df.to_csv(os.path.join(out_long_dir, str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
     # exit()
 
 
@@ -676,10 +712,10 @@ for region in reg_norm_lst:
     spt_anom_sig_fill_lst = []
     print('working on region, ', region)
 
-    spt_anom_in = out_reg_dir + str(region) + '_spt_anoms_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'
+    spt_anom_in = os.path.join(out_reg_dir, str(region) + '_spt_anoms_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
     spt_anom_df = pd.read_csv(spt_anom_in, delimiter=',', header=0, index_col=0)
 
-    sig_spt_anom_in = out_reg_dir + str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'
+    sig_spt_anom_in = os.path.join(out_reg_dir, str(region) + '_spt_ERRORs_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
     sig_spt_anom_df = pd.read_csv(sig_spt_anom_in, delimiter=',', header=0, index_col=0)
 
     fog_id_lst = spt_anom_df.columns.to_list()
@@ -693,9 +729,9 @@ for region in reg_norm_lst:
         print('std: ', STD_id)
 
         if region == 'ISL': ## Get series from Storbreen, Aalfotbreen and Rembesdalskaaka to normalize (SCA, fog_ids 302, 317, 2296)
-            neighbour_anom_in = out_anom_dir + 'SCA_all_SEL_gla_anomalies.csv'
+            neighbour_anom_in = os.path.join(out_anom_dir, 'SCA_all_SEL_gla_anomalies.csv')
             neighbour_anom_df = pd.read_csv(neighbour_anom_in, delimiter=',', header=0, usecols= ['YEAR','302','317','2296'], index_col=['YEAR'])
-            neighbour_sig_anom_in = out_anom_dir + 'SCA_all_SEL_gla_anomalies_UNC.csv'
+            neighbour_sig_anom_in = os.path.join(out_anom_dir, 'SCA_all_SEL_gla_anomalies_UNC.csv')
             neighbour_sig_anom_df = pd.read_csv(neighbour_sig_anom_in, delimiter=',', header=0, usecols= ['YEAR','302','317','2296'], index_col=['YEAR'])
             neighbour_sig_anom_df = neighbour_sig_anom_df.max(axis=1)
             STD_neigbour = neighbour_anom_df.loc[neighbour_anom_df.index.isin(list(reference_period))].std()
@@ -713,9 +749,9 @@ for region in reg_norm_lst:
             # exit()
 
         if region in ['SJM', 'RUA']: ## Get series from Storglacieren to normalize (SCA, fog_ids 332)
-            neighbour_anom_in = out_anom_dir + 'SCA_all_reg_gla_anomalies.csv'
+            neighbour_anom_in = os.path.join(out_anom_dir, 'SCA_all_reg_gla_anomalies.csv')
             neighbour_anom_df = pd.read_csv(neighbour_anom_in, delimiter=',', header=0, usecols= ['YEAR','332'], index_col=['YEAR'])
-            neighbour_sig_anom_in = out_anom_dir + 'SCA_all_SEL_gla_anomalies_UNC.csv'
+            neighbour_sig_anom_in = os.path.join(out_anom_dir, 'SCA_all_SEL_gla_anomalies_UNC.csv')
             neighbour_sig_anom_df = pd.read_csv(neighbour_sig_anom_in, delimiter=',', header=0, usecols= ['YEAR','332'], index_col=['YEAR'])
             neighbour_sig_anom_df = neighbour_sig_anom_df.max(axis=1)
             STD_neigbour = neighbour_anom_df.loc[neighbour_anom_df.index.isin(list(reference_period))].std()
@@ -732,9 +768,9 @@ for region in reg_norm_lst:
             # exit()
 
         if region == 'CEU': ## Get series from Claridenfirn (CEU, fog_ids 2660)
-            neighbour_anom_in = out_anom_dir + 'CEU_all_SEL_gla_anomalies.csv'
+            neighbour_anom_in = os.path.join(out_anom_dir, 'CEU_all_SEL_gla_anomalies.csv')
             neighbour_anom_df = pd.read_csv(neighbour_anom_in, delimiter=',', header=0, usecols= ['YEAR','2660' ], index_col=['YEAR'])
-            neighbour_sig_anom_in = out_anom_dir + 'CEU_all_SEL_gla_anomalies_UNC.csv'
+            neighbour_sig_anom_in = os.path.join(out_anom_dir, 'CEU_all_SEL_gla_anomalies_UNC.csv')
             neighbour_sig_anom_df = pd.read_csv(neighbour_sig_anom_in, delimiter=',', header=0, usecols= ['YEAR','2660'], index_col=['YEAR'])
             neighbour_sig_anom_df = neighbour_sig_anom_df.max(axis=1)
             STD_neigbour = neighbour_anom_df.loc[neighbour_anom_df.index.isin(list(reference_period))].std()
@@ -742,9 +778,9 @@ for region in reg_norm_lst:
             print('std: ', STD_neigbour)
 
         if region == 'WNA': ## Get series from Taku glacier (ALA, fog_ids 124)
-            neighbour_anom_in = out_anom_dir + 'WNA_all_SEL_gla_anomalies.csv'
+            neighbour_anom_in = os.path.join(out_anom_dir, 'WNA_all_SEL_gla_anomalies.csv')
             neighbour_anom_df = pd.read_csv(neighbour_anom_in, delimiter=',', header=0, usecols= ['YEAR','124' ], index_col=['YEAR'])
-            neighbour_sig_anom_in = out_anom_dir + 'WNA_all_SEL_gla_anomalies_UNC.csv'
+            neighbour_sig_anom_in = os.path.join(out_anom_dir, 'WNA_all_SEL_gla_anomalies_UNC.csv')
             neighbour_sig_anom_df = pd.read_csv(neighbour_sig_anom_in, delimiter=',', header=0, usecols= ['YEAR','124'], index_col=['YEAR'])
             neighbour_sig_anom_df = neighbour_sig_anom_df.max(axis=1)
             STD_neigbour = neighbour_anom_df.loc[neighbour_anom_df.index.isin(list(reference_period))].std()
@@ -752,9 +788,9 @@ for region in reg_norm_lst:
             print('std: ', STD_neigbour)
 
         if region == 'CAU': ## Get series from Hinteeisferner, Kesselwand (CEU, fog_ids 491,507)
-            neighbour_anom_in = out_anom_dir + 'CEU_all_SEL_gla_anomalies.csv'
+            neighbour_anom_in = os.path.join(out_anom_dir, 'CEU_all_SEL_gla_anomalies.csv')
             neighbour_anom_df = pd.read_csv(neighbour_anom_in, delimiter=',', header=0, usecols= ['YEAR','491', '507' ], index_col=['YEAR'])
-            neighbour_sig_anom_in = out_anom_dir + 'CEU_all_SEL_gla_anomalies_UNC.csv'
+            neighbour_sig_anom_in = os.path.join(out_anom_dir, 'CEU_all_SEL_gla_anomalies_UNC.csv')
             neighbour_sig_anom_df = pd.read_csv(neighbour_sig_anom_in, delimiter=',', header=0, usecols= ['YEAR','491', '507'], index_col=['YEAR'])
             neighbour_sig_anom_df = neighbour_sig_anom_df.max(axis=1)
             STD_neigbour = neighbour_anom_df.loc[neighbour_anom_df.index.isin(list(reference_period))].std()
@@ -762,9 +798,9 @@ for region in reg_norm_lst:
             print('std: ', STD_neigbour)
 
         if region == 'GRL': ## Get series from Meighen and Devon Ice Caps to normalize (ACS, fog_ids 16, 39)
-            neighbour_anom_in = out_anom_dir + 'GRL_all_SEL_gla_anomalies.csv'
+            neighbour_anom_in = os.path.join(out_anom_dir, 'GRL_all_SEL_gla_anomalies.csv')
             neighbour_anom_df = pd.read_csv(neighbour_anom_in, delimiter=',', header=0, usecols= ['YEAR', '16', '39'], index_col=['YEAR'])
-            neighbour_sig_anom_in = out_anom_dir + 'GRL_all_SEL_gla_anomalies_UNC.csv'
+            neighbour_sig_anom_in = os.path.join(out_anom_dir, 'GRL_all_SEL_gla_anomalies_UNC.csv')
             neighbour_sig_anom_df = pd.read_csv(neighbour_sig_anom_in, delimiter=',', header=0, usecols= ['YEAR','16', '39'], index_col=['YEAR'])
             neighbour_sig_anom_df = neighbour_sig_anom_df.max(axis=1)
             STD_neigbour = neighbour_anom_df.loc[neighbour_anom_df.index.isin(list(reference_period))].std()
@@ -784,9 +820,9 @@ for region in reg_norm_lst:
             # exit()
 
         if region in ['ANT', 'NZL', 'SA1', 'TRP']: ## Get series from Echaurren to normalize (SA2, fog_id 1344)
-            neighbour_anom_in = out_anom_dir + 'SA2_all_reg_gla_anomalies.csv'
+            neighbour_anom_in = os.path.join(out_anom_dir, 'SA2_all_reg_gla_anomalies.csv')
             neighbour_anom_df = pd.read_csv(neighbour_anom_in, delimiter=',', header=0, usecols= ['YEAR','1344'], index_col=['YEAR'])
-            neighbour_sig_anom_in = out_anom_dir + 'SA2_all_SEL_gla_anomalies_UNC_recalc.csv'
+            neighbour_sig_anom_in = os.path.join(out_anom_dir, 'SA2_all_SEL_gla_anomalies_UNC_recalc.csv')
             neighbour_sig_anom_df = pd.read_csv(neighbour_sig_anom_in, delimiter=',', header=0, usecols= ['YEAR','SA2_unc'], index_col=['YEAR'])
             neighbour_sig_anom_df = neighbour_sig_anom_df.max(axis=1)
             STD_neigbour = neighbour_anom_df.loc[neighbour_anom_df.index.isin(list(reference_period))].std()
@@ -815,10 +851,10 @@ for region in reg_norm_lst:
         # exit()
 
     reg_anom_fill_df = pd.concat(spt_anom_fill_lst, axis='columns')
-    reg_anom_fill_df.to_csv(out_long_dir + str(region) + '_spt_anoms_fill_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
+    reg_anom_fill_df.to_csv(os.path.join(out_long_dir, str(region) + '_spt_anoms_fill_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
 
     reg_anom_sig_fill_df = pd.concat(spt_anom_sig_fill_lst, axis='columns')
-    reg_anom_sig_fill_df.to_csv(out_long_dir + str(region) + '_spt_ERRORs_fill_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv')
+    reg_anom_sig_fill_df.to_csv(os.path.join(out_long_dir, str(region) + '_spt_ERRORs_fill_ref_' + str(year_ini) + '-' + str(year_fin) + '_' + fog_version + '.csv'))
     # exit()
 
 
