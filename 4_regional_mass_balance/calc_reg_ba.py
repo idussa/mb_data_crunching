@@ -35,7 +35,8 @@ from scipy.stats import norm
 pd.options.mode.chained_assignment = None  # default='warn'
 import scipy as sp  # usage: scipy.stats.funct()
 
-reg_lst= [ 'ISL', 'CEU', 'ALA', 'ASW', 'SA2','WNA', 'ACN', 'ACS', 'GRL', 'SJM', 'SCA', 'RUA', 'ASN', 'CAU', 'ASC', 'ASE', 'TRP', 'SA1', 'NZL', 'ANT']
+reg_lst= ['ISL']
+# reg_lst= [ 'ISL', 'CEU', 'ALA', 'ASW', 'SA2','WNA', 'ACN', 'ACS', 'GRL', 'SJM', 'SCA', 'RUA', 'ASN', 'CAU', 'ASC', 'ASE', 'TRP', 'SA1', 'NZL', 'ANT']
 # reg_lst= ['ASC', 'ASE', 'TRP', 'SA1', 'NZL', 'ANT']
 
 rgi_region= {'ACN' : 'Arctic Canada (North)', 'WNA' : 'Western Canada & US', 'ALA' : 'Alaska', 'ACS' : 'Arctic Canada (South)', 'TRP' : 'Low Latitudes', 'SCA' : 'Scandinavia',
@@ -77,18 +78,19 @@ color = {  'ALA':	'#b9762a',
 ##    Define input datasets
 #################################################################################################
 path = os.path.dirname(os.path.abspath(__file__))
+path_proj = os.path.join(path, "..")
 
 fog_version = '2024-01'
 
-path_proj = 'C:\\Users\\idussail2\\Documents\\PROJECTS\\G3P_project\\'
-path_oce = path_proj + 'codes\\mb_data_crunching_local\\3.1_global_CE_spatial_anomaly\\out_data_'+fog_version+'\\OCE_files_by_region\\'# path to regional OCE files
+# path_proj = 'C:\\Users\\idussail2\\Documents\\PROJECTS\\G3P_project\\'
+path_oce = os.path.join(path_proj, '3.1_global_CE_spatial_anomaly', 'out_data_'+fog_version,'OCE_files_by_region') # path to regional OCE files
 
 
 
 #################################################################################################
 ##    Define parameters
 #################################################################################################
-out_dir = path + '\\out_data_'+fog_version+'\\'
+out_dir = os.path.join(path, 'out_data_'+fog_version)
 if not os.path.exists(out_dir):
     os.mkdir(out_dir)
 
@@ -113,13 +115,13 @@ axes = 'eq_axes' # all region with same Y axes, visualizes best the contribution
 #################################################################################################
 ##    READ ID links and areas
 #################################################################################################
-in_data_geo = path + '\\in_data\\fog-'+fog_version+'\\_FOG_GEO_MASS_BALANCE_DATA_'+fog_version+'.csv'
-data_geo_df = pd.read_csv(in_data_geo, encoding='utf-8', delimiter=',', header=0, usecols=['WGMS_ID','ID','GLACIER_REGION_CODE', 'GLACIER_SUBREGION_CODE', 'AREA_SURVEY_YEAR'],index_col='WGMS_ID').sort_index()
+in_data_coords = os.path.join(path, 'in_data', 'fog-'+fog_version, 'FOG_coord_'+fog_version+'.csv')
+data_coords_df = pd.read_csv(in_data_coords, encoding='utf-8', delimiter=',', header=0, usecols=['WGMS_ID','LATITUDE', "LONGITUDE"], index_col='WGMS_ID').sort_index()
 
-in_data_area = path + '\\in_data\\_G3P_All_ID_Area.csv '
+in_data_area = os.path.join(path, 'in_data', '_G3P_All_ID_Area.csv')
 id_area_df = pd.read_csv(in_data_area, encoding='utf-8', delimiter=',', header=0)
 
-in_data_zemp = path + '\\in_data\\zemp_etal_regional_series\\'
+in_data_zemp = os.path.join(path, 'in_data', 'zemp_etal_regional_series')
 
 ############################################################################################################################
 
@@ -132,15 +134,30 @@ for region in reg_lst:
     # region='ACN'
     print('working on region, ', region)
 
-    ## Define and read input:   regional OCE series and Uncertainty
-    in_oce_file = path_oce + region + '_regional_CEs.csv'
-    in_sig_oce_file = path_oce + region + '_regional_sigma_CEs.csv'
+    ## Define and read input:   regional OCE series and three sources of uncertainty
+    in_oce_file = os.path.join(path_oce, region + '_regional_CEs.csv')
+    in_sig_dh_oce_file = os.path.join(path_oce, region + '_regional_sigma_dh_CEs.csv')
+    in_sig_rho_oce_file = os.path.join(path_oce, region + '_regional_sigma_rho_CEs.csv')
+    in_sig_anom_oce_file = os.path.join(path_oce, region + '_regional_sigma_anom_CEs.csv')
 
     oce_df = pd.read_csv(in_oce_file, encoding='latin1', delimiter=',', header=0, index_col='YEAR')
-    sig_oce_df = pd.read_csv(in_sig_oce_file, encoding='latin1', delimiter=',', header=0, index_col='YEAR')
+    sig_dh_oce_df = pd.read_csv(in_sig_dh_oce_file, encoding='latin1', delimiter=',', header=0, index_col='YEAR')
+    sig_rho_oce_df = pd.read_csv(in_sig_rho_oce_file, encoding='latin1', delimiter=',', header=0, index_col='YEAR')
+    sig_anom_oce_df = pd.read_csv(in_sig_anom_oce_file, encoding='latin1', delimiter=',', header=0, index_col='YEAR')
+    sig_oce_df = sig_dh_oce_df.copy()
+    sig_oce_df = sig_dh_oce_df**2 + sig_rho_oce_df**2 + sig_anom_oce_df**2
     # print(oce_df)
 
+    # Keep only glaciers in the region
     rgi_area_df = id_area_df.loc[(id_area_df['GLACIER_REGION_CODE'] == region)].set_index('WGMS_ID')
+
+    # TODO: INES: Some glaciers WGMS_ID are missing in FOG_coord and _FOG_GEO, removing them temporarily...
+    id_in_coords = [int(id) in data_coords_df.index for id in rgi_area_df.index]
+    rgi_area_df = rgi_area_df[id_in_coords]
+
+    # Adding latitude/longitude from the _coords file (for later error propagation)
+    rgi_area_df["LATITUDE"] = data_coords_df["LATITUDE"][rgi_area_df.index]
+    rgi_area_df["LONGITUDE"] = data_coords_df["LONGITUDE"][rgi_area_df.index]
 
     if region == 'SA1':
         rgi_area_df = id_area_df.loc[(id_area_df['GLACIER_REGION_CODE'] == 'SAN')].set_index('WGMS_ID')
@@ -174,101 +191,196 @@ for region in reg_lst:
     print('total area region / tot nb glaciers in region :  ', tot_area_rgi_reg, ' / ', len(rgi_area_df))
     print('total area glaciers observed / number glaciers with observations :  ', tot_area_obs, ' / ', nb_gla_obs)
 
-    ####### Calculate unobserved glaciers time series and uncertainties ##########
+    ####### Calculate all glaciers time series and uncertainties ##########
 
     ## 1. Calculate OCE series for unobserved glaciers as the Weigthed mean from the regional glacier sample with observations
     rel_mb_df = pd.DataFrame()
+    rel_sig_dh_mb_df = pd.DataFrame()
+    rel_sig_rho_mb_df = pd.DataFrame()
+    rel_sig_anom_mb_df = pd.DataFrame()
     rel_sig_mb_df = pd.DataFrame()
 
+    list_df = []
+    list_areas = []
+    list_lat = []
+    list_lon = []
     for id in id_lst:
         # print('working on glacier, ', id)
+
+        # Read area, mass balance estimate and three uncertainty sources
         area= gla_obs_df.loc[id, 'AREA']
+        lon= gla_obs_df.loc[id, 'LONGITUDE']
+        lat= gla_obs_df.loc[id, 'LATITUDE']
         mb_oce= oce_df[str(id)]
+        sig_dh_oce = sig_dh_oce_df[str(id)]
+        sig_rho_oce = sig_rho_oce_df[str(id)]
+        sig_anom_oce = sig_anom_oce_df[str(id)]
+
+        # Area weighting for all (uncertainties are also combined pairwise with area-weight in exact propagation)
         mb_oce_rel = (mb_oce * area) / tot_area_obs
+        sig_dh_rel = (sig_dh_oce * area)/tot_area_obs
+        sig_rho_rel = (sig_rho_oce * area)/tot_area_obs
+        sig_anom_rel = (sig_anom_oce * area)/tot_area_obs
+        # obs_df["id"] = mb_oce_rel
+        # obs_df[id] = sig_rel
+
+        # Dataframes per ID
         rel_mb_df[id] = mb_oce_rel
+        # The three error sources
+        rel_sig_dh_mb_df[id] = sig_dh_rel
+        rel_sig_rho_mb_df[id] = sig_rho_rel
+        rel_sig_anom_mb_df[id] = sig_anom_rel
+        # The total error
+        rel_sig_mb_df[id] = np.sqrt(sig_dh_rel**2 + sig_rho_rel**2 + sig_anom_rel**2)
 
-        sig_oce = sig_oce_df[str(id)]
-        sig_rel = (sig_oce * area)/tot_area_obs
-        rel_sig_mb_df[id] = sig_rel
+        # Store lat/lon in a dataframe for "observed" glaciers
+        list_lat.append(lat)
+        list_lon.append(lon)
 
-    # Area-weighted OCE for unobserved glaciers
+    # Area-weighted OCE for observed glaciers
     Aw_oce_obs_df = rel_mb_df.sum(axis=1, min_count=1)
     # print(Aw_oce_obs_df)
 
-    ## 2. Calculate OCE uncertainties for unobserved glaciers
+    ## 2. Calculate OCE uncertainties for observed glaciers
 
-    # Weighted mean Sigma OCE
-    Aw_sig_obs_df = rel_sig_mb_df.sum(axis=1, min_count=1)
+    # Weighted mean Sigma OCE of observed glaciers (only to use later for unobserved glaciers)
+    Sig_oce_obs_gla = rel_sig_mb_df.sum(axis=1, min_count=1)
     # print(Aw_sig_obs_df)
     # exit()
 
-    # Result: Regional OCE Arithmetic mean
-    Arith_oce = oce_df.mean(axis=1)
+    # ROMAIN: removing this error source
 
-    # Error Variability of intepolation method (Area Weighted mean oce’s vs Arithmetic mean oce’s)
-    mb_int_df = pd.concat([Aw_oce_obs_df, Arith_oce], axis=1)
-    mb_int_std = mb_int_df.std(axis=1)
-    mb_int_var_err = 1.96 * mb_int_std
+    # # Result: Regional OCE Arithmetic mean
+    # Arith_oce = oce_df.mean(axis=1)
+    # # Error Variability of interpolation method (Area Weighted mean oce’s vs Arithmetic mean oce’s)
+    # mb_int_df = pd.concat([Aw_oce_obs_df, Arith_oce], axis=1)
+    # mb_int_std = mb_int_df.std(axis=1)
+    # mb_int_var_err = 1.96 * mb_int_std
     # print(mb_int_var_err)
 
-    # Result: sigma OCE for unobserved glaciers
-    Sig_oce_unobs_gla = np.sqrt(mb_int_var_err ** 2 + Aw_sig_obs_df ** 2)
+    # Result: sigma OCE for observed glaciers
 
     # print('-------------------------sig unobs: ',Sig_oce_unobs_gla)
 
     ## 3. Add OCE series and uncertainties for unobserved glaciers
+
     # Id -9999 for unobserved glaciers, OCE is the area weighthed average of the regional observed series
 
-    out_oce = out_dir + 'spt_CEs_obs-unobs_per_region\\'
+    out_oce = os.path.join(out_dir, 'spt_CEs_obs-unobs_per_region')
     if not os.path.exists(out_oce):
         os.mkdir(out_oce)
 
-    oce_df[-9999]= Aw_oce_obs_df
-    oce_df.to_csv(out_oce + region +'_CEs_obs-unobs.csv')
-
-    sig_oce_df[-9999] = Sig_oce_unobs_gla
-    sig_oce_df.to_csv(out_oce + region + '_sigma_CEs_obs-unobs.csv')
+    oce_df[-9999] = Aw_oce_obs_df
+    oce_df.to_csv(os.path.join(out_oce, region +'_CEs_obs-unobs.csv'))
+    sig_oce_df[-9999] = Sig_oce_obs_gla
+    sig_oce_df.to_csv(os.path.join(out_oce, region + '_sigma_dh_CEs_obs-unobs.csv'))
 
     ####### Calculate Regional specific mass balance time series ##########
 
     Reg_mb_df[region] = Aw_oce_obs_df
     nb_unobs_gla = nb_gla_reg - nb_gla_obs
 
-    Aw_sigsq_df = pd.DataFrame()
-    new_id_lst= id_lst+[-9999]
+    # ROMAIN: commenting all of this to replace with the error propagation in common functions/
 
-    for id in new_id_lst:
-        # id=3067
-        # print('working on glacier, ', id)
-        if id == -9999:
-            area_unobs = round(tot_area_rgi_reg, 2) - round(tot_area_obs, 2)
-            sigsq_W_unobs = Sig_oce_unobs_gla.pow(2) * (area_unobs / tot_area_rgi_reg)
-            Aw_sigsq_df[-9999]= sigsq_W_unobs
-        else:
-            area = gla_obs_df.loc[id, 'AREA']
-            sig_id = sig_oce_df[str(id)]
-            sigsq_W = sig_id.pow(2) * (area / tot_area_rgi_reg)
-            Aw_sigsq_df[id] = sigsq_W
-
-    Aw_sigsq_unobs = Aw_sigsq_df[-9999]
-    Aw_sigsq_df = Aw_sigsq_df.drop(columns=[-9999])
-    Aw_sigsq_obs = Aw_sigsq_df.sum(axis=1, min_count= 1)
+    # Aw_sigsq_df = pd.DataFrame()
+    # new_id_lst= id_lst+[-9999]
+    #
+    # for id in new_id_lst:
+    #     # id=3067
+    #     # print('working on glacier, ', id)
+    #     if id == -9999:
+    #         area_unobs = round(tot_area_rgi_reg, 2) - round(tot_area_obs, 2)
+    #         sigsq_W_unobs = Sig_oce_unobs_gla.pow(2) * (area_unobs / tot_area_rgi_reg)
+    #         Aw_sigsq_df[-9999]= sigsq_W_unobs
+    #     else:
+    #         area = gla_obs_df.loc[id, 'AREA']
+    #         sig_id = sig_oce_df[str(id)]
+    #         sigsq_W = sig_id.pow(2) * (area / tot_area_rgi_reg)
+    #         Aw_sigsq_df[id] = sigsq_W
+    #
+    # Aw_sigsq_unobs = Aw_sigsq_df[-9999]
+    # Aw_sigsq_df = Aw_sigsq_df.drop(columns=[-9999])
+    # Aw_sigsq_obs = Aw_sigsq_df.sum(axis=1, min_count= 1)
     # print(Aw_sigsq_unobs)
     # print(Aw_sigsq_obs)
     # exit()
     # reg_sig_sqsum = sig_oce_df.pow(2).sum(axis=1, min_count=1)
-
-
     # reg_sig = np.sqrt(reg_sig_sqsum) / np.sqrt((nb_gla_obs/corr_factor))
-    if nb_gla_obs <= 500:
-        reg_sig = np.sqrt(Aw_sigsq_obs + Aw_sigsq_unobs)
-    else:
-        reg_sig = np.sqrt(((1 / (nb_gla_obs/500)) * Aw_sigsq_obs) + Aw_sigsq_unobs)
+    # if nb_gla_obs <= 500:
+    #     reg_sig = np.sqrt(Aw_sigsq_obs + Aw_sigsq_unobs)
+    # else:
+    #     reg_sig = np.sqrt(((1 / (nb_gla_obs/500)) * Aw_sigsq_obs) + Aw_sigsq_unobs)
 
     # reg_sig = np.sqrt(Aw_sigsq_obs + Aw_sigsq_unobs)
     # print(reg_sig)
     # exit()
 
+    from propagation_functions import wrapper_latlon_double_sum_covar, sig_dh_spatialcorr, sig_rho_dv_spatialcorr
+
+    # Fully correlated propagation for residual error of anomaly
+    Aw_sig_anom_obs_df = rel_sig_anom_mb_df.sum(axis=1, min_count=1)
+
+    # We can't apply to the whole YEAR/ID dataframe at once here, we need to loop for each YEAR of the dataframes
+    # to compute the pairwise error propagation for dh and density across all glaciers of that year
+    list_sig_dh_yearly = []
+    list_sig_rho_yearly = []
+    for i in range(len(rel_sig_dh_mb_df.index)):
+
+        print(f"Propagating uncertainties from glaciers to region for year {rel_sig_dh_mb_df.index[i]}")
+
+        yearly_dh_df = rel_sig_dh_mb_df.iloc[i, :]
+        # Create dataframe with dh errors, lat and lon
+        yearly_dh_df["errors"] = yearly_dh_df.values
+        yearly_dh_df["lat"] = np.array(list_lat)
+        yearly_dh_df["lon"] = np.array(list_lon)
+
+        # Spatial correlations for dh
+        sig_dh_obs = wrapper_latlon_double_sum_covar(yearly_dh_df, spatialcorr_func=sig_dh_spatialcorr)
+
+        # Check propagation works as intended: final estimate is between fully correlated and independent
+        sig_dh_fullcorr = np.sum(yearly_dh_df["errors"])
+        sig_dh_uncorr = np.sqrt(np.sum(yearly_dh_df["errors"]**2))
+        # print(f"{sig_dh_uncorr}, {sig_dh_obs}, {sig_dh_fullcorr}")
+        assert sig_dh_uncorr <= sig_dh_obs <= sig_dh_fullcorr
+
+        # Create dataframe with rho errors, lat and lon
+        yearly_rho_df = rel_sig_rho_mb_df.iloc[i, :]
+        yearly_rho_df["errors"] = yearly_rho_df.values
+        yearly_rho_df["lat"] = np.array(list_lat)
+        yearly_rho_df["lon"] = np.array(list_lon)
+
+        # Spatial correlation for rho for a 1-year period
+        def sig_rho_dv_spatialcorr_yearly(d):
+            return sig_rho_dv_spatialcorr(d, dt=1)
+        sig_rho_obs = wrapper_latlon_double_sum_covar(yearly_rho_df, spatialcorr_func=sig_rho_dv_spatialcorr_yearly)
+
+        # Check propagation works as intended: final estimate is between fully correlated and independent
+        sig_rho_fullcorr = np.sum(yearly_rho_df["errors"])
+        sig_rho_uncorr = np.sqrt(np.sum(yearly_rho_df["errors"] ** 2))
+        # print(f"{sig_rho_uncorr}, {sig_rho_obs}, {sig_rho_fullcorr}")
+        assert sig_rho_uncorr <= sig_rho_obs <= sig_rho_fullcorr
+
+        # Append to list for each yearly period
+        list_sig_dh_yearly.append(sig_dh_obs)
+        list_sig_rho_yearly.append(sig_rho_obs)
+
+    # And write back the 1D list of uncertainties into an indexed (by YEAR) dataframe
+    Aw_sig_dh_obs_df = Aw_sig_anom_obs_df.copy()
+    Aw_sig_dh_obs_df = np.array(list_sig_dh_yearly)
+    Aw_sig_rho_obs_df = Aw_sig_anom_obs_df.copy()
+    Aw_sig_rho_obs_df = np.array(list_sig_rho_yearly)
+
+    Sig_oce_obs_propag = np.sqrt(Aw_sig_dh_obs_df ** 2 + Aw_sig_rho_obs_df ** 2 + Aw_sig_anom_obs_df ** 2)
+
+    # Defining area-weighted uncertainty of unobserved glaciers based on the mean uncertainty of observed glaciers
+    area_unobs = round(tot_area_rgi_reg, 2) - round(tot_area_obs, 2)
+    sig_W_unobs = Sig_oce_obs_gla * (area_unobs / tot_area_rgi_reg)
+
+    # Area-weight the observed glaciers before combining in final uncertainty
+    sig_W_obs = Sig_oce_obs_propag * (tot_area_obs / tot_area_rgi_reg)
+
+    # Final regional uncertainty!
+    reg_sig = np.sqrt(sig_W_obs**2 + sig_W_unobs**2)
     Reg_sig_mb_df[region] = reg_sig
 
     # ## PLOT regional mass balance
@@ -302,7 +414,7 @@ for region in reg_lst:
     stats_df['clim_extreme_years'] = np.where((stats_df['raw_anomaly'] < - 2 * climat_std ) | (stats_df['raw_anomaly'] > 2 * climat_std ), stats_df['timeseries'], np.nan )
     # stats_df['clim_extreme_years'] = np.where((stats_df.index >= stats_df.index.min() + 5 ), stats_df['clim_extreme_years'], np.nan )
 
-    stats_df.to_csv(out_dir + 'stats\\'+region+'_stats.csv')
+    stats_df.to_csv(os.path.join(out_dir, 'stats', region+'_stats.csv'))
     # exit()
     if end_plot == '_stats_norm_std_reg_':
         fig = plt.figure( dpi=300)
@@ -333,13 +445,13 @@ for region in reg_lst:
         plt.legend(loc='best', fontsize=10, frameon=False)
         plt.tight_layout()
 
-        out_plot_dir = out_dir + 'per_region_stats\\plot_' + region + '_B_extremes_stats\\'
+        out_plot_dir = os.path.join(out_dir, 'per_region_stats', 'plot_' + region + '_B_extremes_stats')
         if not os.path.exists(out_plot_dir):
             os.mkdir(out_plot_dir)
 
         # set output format
-        out_svg= out_plot_dir + region +'_fig'+end_plot+'.svg'
-        out_fig = out_plot_dir + region + '_fig' + end_plot + '.png'
+        out_svg= os.path.join(out_plot_dir, region +'_fig'+end_plot+'.svg')
+        out_fig = os.path.join(out_plot_dir, region + '_fig' + end_plot + '.png')
 
         plt.savefig(out_svg, dpi=300)
         plt.savefig(out_fig, dpi=300)
@@ -408,13 +520,13 @@ for region in reg_lst:
 
         plt.tight_layout()
 
-        out_plot_dir = out_dir + 'extreme_years_Climat_Decadal\\'
+        out_plot_dir = os.path.join(out_dir, 'extreme_years_Climat_Decadal')
         if not os.path.exists(out_plot_dir):
             os.mkdir(out_plot_dir)
 
         # set output format
-        out_svg= out_plot_dir + region +'_fig'+end_plot+'.svg'
-        out_fig = out_plot_dir + region + '_fig' + end_plot + '.png'
+        out_svg= os.path.join(out_plot_dir, region +'_fig'+end_plot+'.svg')
+        out_fig = os.path.join(out_plot_dir, region + '_fig' + end_plot + '.png')
 
         plt.savefig(out_svg, dpi=300)
         plt.savefig(out_fig, dpi=300)
@@ -494,13 +606,13 @@ for region in reg_lst:
         plt.legend(loc='best', fontsize=10, frameon=False)
         plt.tight_layout()
 
-        out_plot_dir = out_dir + 'extreme_years_Climat_Decadal\\'
+        out_plot_dir = os.path.join(out_dir, 'extreme_years_Climat_Decadal')
         if not os.path.exists(out_plot_dir):
             os.mkdir(out_plot_dir)
 
         # set output format
-        out_svg = out_plot_dir + region + '_fig' + end_plot + '_years_Climat_Decadal.svg'
-        out_fig = out_plot_dir + region + '_fig' + end_plot + '_years_Climat_Decadal.png'
+        out_svg = os.path.join(out_plot_dir, region + '_fig' + end_plot + '_years_Climat_Decadal.svg')
+        out_fig = os.path.join(out_plot_dir, region + '_fig' + end_plot + '_years_Climat_Decadal.png')
         plt.savefig(out_svg)
         plt.savefig(out_fig)
         print('Plot saved as {}.'.format(out_fig))
@@ -627,15 +739,15 @@ for region in reg_lst:
         # plt.legend(loc=3)
         # plt.tight_layout()
         # out_plot_dir = out_dir + 'plot'+end_plot+'with_extremes\\'
-        out_plot_dir = out_dir + 'plot'+end_plot+'\\'
+        out_plot_dir = os.path.join(out_dir, 'plot'+end_plot)
         if not os.path.exists(out_plot_dir):
             os.mkdir(out_plot_dir)
 
         # set output format
         # out_fig= out_plot_dir + region +'_fig_Ba_series_Aw_extreme_years.svg'
         # out_png= out_plot_dir + region +'_fig_Ba_series_Aw_extreme_years.png'
-        out_fig= out_plot_dir + region +'_fig_Ba_series_Aw.svg'
-        out_png= out_plot_dir + region +'_fig_Ba_series_Aw.png'
+        out_fig= os.path.join(out_plot_dir, region +'_fig_Ba_series_Aw.svg')
+        out_png= os.path.join(out_plot_dir, region +'_fig_Ba_series_Aw.png')
 
         plt.savefig(out_fig)
         plt.savefig(out_png)
@@ -649,8 +761,8 @@ for region in reg_lst:
 Reg_mb_df = Reg_mb_df.loc[(Reg_mb_df.index >= DM_series_min_yr)] / 1000
 Reg_sig_mb_df = Reg_sig_mb_df.loc[(Reg_sig_mb_df.index >= DM_series_min_yr)] / 1000
 ### Save regional Mass balance series
-Reg_mb_df.to_csv(out_dir + 'Regional_B_series_AreaWeighted_corr_500.csv')
-Reg_sig_mb_df.to_csv(out_dir + 'Regional_B_series_uncertainty_corr_500.csv')
+Reg_mb_df.to_csv(os.path.join(out_dir, 'Regional_B_series_AreaWeighted_corr_500.csv'))
+Reg_sig_mb_df.to_csv(os.path.join(out_dir, 'Regional_B_series_uncertainty_corr_500.csv'))
 
 
 print('.........................................................................................')
