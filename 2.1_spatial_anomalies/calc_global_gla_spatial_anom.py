@@ -466,6 +466,7 @@ for region in reg_lst:
 
                 obs_df = pd.DataFrame(data={"ba_anom": yearly_anom_df.values, "lat": np.array(lat_glac), "lon": np.array(lon_glac)})
 
+                print(obs_df)
                 valids = np.isfinite(obs_df["ba_anom"])
 
                 # If nodata is valid, write NaNs

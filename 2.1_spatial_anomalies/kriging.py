@@ -21,12 +21,13 @@ def ba_anom_spatialcorr(d: np.ndarray):
     """
 
     # Three ranges and partial sill for three exponential models
-    r1 = 5.051675e+03
-    r2 = 9.985127e+04
+
+    r1 = 8.79259877e+01
+    r2 = 2.06635202e+05
     r3 = 5.000000e+06
-    ps1 = 0.224308
-    ps2 = 0.140278
-    ps3 = 0.635414
+    ps1 = 0.04484324
+    ps2 = 0.36955494
+    ps3 = 0.58560182
 
     exp1 = ps1 * (1 - np.exp(-3 * d / r1))
     exp2 = ps2 * (1 - np.exp(-3 * d / r2))
@@ -148,9 +149,10 @@ def krige_ba_anom(xobs: np.ndarray, yobs: np.ndarray, ba_anom_obs: np.ndarray, x
     # to derive a variogram equivalent
     if len(ba_anom_obs) > 10:
         var = np.nanvar(ba_anom_obs)
-    # TODO: If sample size is too small, replace by an average annual anomaly variance?
+    # If sample size too small, replace by global average variance of annual mass balance anomaly (Huss et al.)
     else:
-        var = 2
+        # In mm w.e. yr-1, the STD of annual anomalies globally is 470, so we take its square
+        var = 470**2
 
     def variogram_func(placeholder, d: np.ndarray):
         """The variogram is the variance minus the covariance, and the covariance is the variance times correlation."""
